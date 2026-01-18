@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Project BOM</title>
+    <link rel="stylesheet" href="index.css">
+    <style>
+        html, body {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+        }
+        .browser {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            width: 100%;
+        }
+        .topbar {
+            height: 50px;
+            background-color: #333;
+            color: white;
+            display: flex;
+            align-items: center;
+            padding: 0 10px;
+        }
+        .toolbar {
+            margin-right: 10px;
+        }
+        .address {
+            margin-right: 10px;
+        }
+        .content {
+            flex-grow: 1;
+            border: none;
+        }
+        /* Dark theme styles */
+        body.dark {
+            background-color: #121212;
+            color: #e0e0e0;
+        }
+        /* Light theme styles */
+        body.light {
+            background-color: #ffffff;
+            color: #000000;
+        }
+        /* Context menu styles */
+        .menu {
+            position: absolute;
+            background-color: white;
+            border: 1px solid #ccc;
+            box-shadow: 2px 2px 10px rgba(0, 0, 0, 0.1);
+            z-index: 1000;
+        }
+        .menu-item {
+            padding: 8px 12px;
+            cursor: pointer;
+        }
+        .menu-item:hover {
+            background-color: #f0f0f0;
+        }
+        /* Network indicator styles */
+        .network {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-left: 10px;
+            display: inline-block;
+        }
+        .network.online {
+            background-color: green;
+        }
+        .network.offline {
+            background-color: red;
+        }
+        /* Geolocation indicator styles */
+        .geolocation {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-left: 10px;
+            display: inline-block;
+            background-color: transparent;
+            border: 2px solid #ccc;
+        }
+        .geolocation.reached {
+            background-color: green;
+        }
+    </style>
+</head>
+<body>
+    <div class="browser">
+        <div class="topbar">
+            Topbar
+            <div class="toolbar">
+                Toolbar
+                <button class="homepage">Homepage</button>
+                <button class="back" disabled>Back</button>
+                <button class="forward" disabled>Forward</button>
+                <button class="refresh">Refresh</button>
+            </div>
+            <select class="address" id="address" name="address" autocomplete="off">
+                <option value="docs/intro.html">Intro</option>
+                <option value="docs/javascript.html">JavaScript</option>
+                <option value="docs/css.html">CSS</option>
+                <option value="docs/html.html">HTML</option>
+                <option value="docs/nodejs.html">Node.js</option>
+            </select>
+            <div class="setting">
+                Setting
+                <div class="reading-time">0.0 seconds</div>
+                <select class="theme" id="theme" name="theme">
+                    <option value="dark">Dark</option>
+                    <option value="light">Light</option>
+                </select>
+                <div class="network"></div>
+                <div class="geolocation"></div>
+                <button class="fullscreen">Fullscreen</button>
+            </div>
+        </div>
+        <iframe class="content" name="content" src="docs/intro.html"></iframe>
+    </div>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const contentFrame = document.querySelector('.content');
+            const addressSelect = document.querySelector('.address');
+            const backButton = document.querySelector('.back');
+            const forwardButton = document.querySelector('.forward');
+            const homepageButton = document.querySelector('.homepage');
+            const readingTimeElement = document.querySelector('.reading-time');
+            const LAST_SAVED_URL_KEY = 'lastSavedUrl';
+            const themeSelect = document.querySelector('.theme');
+
+            let readingTime = 0;
+            let readingInterval;
+
+            // Function to update button states
+            const updateButtonStates = () => {
+                const currentSrc = contentFrame.src;
+                const relativeSrc = currentSrc.substring(currentSrc.lastIndexOf('/') + 1); // Extract relative path
+                const options = Array.from(addressSelect.options);
+                const currentIndex = options.findIndex(option => option.value.endsWith(relativeSrc));
+
+                backButton.disabled = currentIndex <= 0; // Disable if at the first option
+                forwardButton.disabled = currentIndex >= options.length - 1; // Disable if at the last option
+            };
+
+            // Sync address select with iframe content
+            const syncAddressWithIframe = () => {
+                const currentSrc = contentFrame.src;
+                const relativeSrc = currentSrc.substring(currentSrc.lastIndexOf('/') + 1); // Extract relative path
+                const options = Array.from(addressSelect.options);
+                const matchingOption = options.find(option => option.value.endsWith(relativeSrc));
+                if (matchingOption) {
+                    addressSelect.value = matchingOption.value;
+                }
+                updateButtonStates();
+            };
+
+            // Update iframe src when address changes
+            addressSelect.addEventListener('change', () => {
+                contentFrame.src = addressSelect.value;
+            });
+
+            // Back button functionality
+            backButton.addEventListener('click', () => {
+                const options = Array.from(addressSelect.options);
+                const currentIndex = options.findIndex(option => option.value === addressSelect.value);
+                if (currentIndex > 0) {
+                    addressSelect.value = options[currentIndex - 1].value;
+                    contentFrame.src = addressSelect.value;
+                }
+            });
+
+            // Forward button functionality
+            forwardButton.addEventListener('click', () => {
+                const options = Array.from(addressSelect.options);
+                const currentIndex = options.findIndex(option => option.value === addressSelect.value);
+                if (currentIndex < options.length - 1) {
+                    addressSelect.value = options[currentIndex + 1].value;
+                    contentFrame.src = addressSelect.value;
+                }
+            });
+
+            // Homepage button functionality
+            homepageButton.addEventListener('click', () => {
+                addressSelect.value = 'docs/intro.html';
+                contentFrame.src = 'docs/intro.html';
+            });
+
+            // Function to reset reading time
+            const resetReadingTime = () => {
+                readingTime = 0;
+                updateReadingTimeDisplay();
+            };
+
+            // Function to update reading time display
+            const updateReadingTimeDisplay = () => {
+                readingTimeElement.textContent = `${readingTime.toFixed(1)} seconds`;
+            };
+
+            // Start recording reading time
+            const startReadingTime = () => {
+                readingInterval = setInterval(() => {
+                    readingTime += 0.1;
+                    updateReadingTimeDisplay();
+                }, 100);
+            };
+
+            // Pause recording reading time
+            const pauseReadingTime = () => {
+                clearInterval(readingInterval);
+            };
+
+            // Listen for iframe navigation events
+            contentFrame.addEventListener('load', () => {
+                resetReadingTime();
+                startReadingTime();
+            });
+
+            // Pause reading time when page is hidden
+            document.addEventListener('visibilitychange', () => {
+                if (document.hidden) {
+                    pauseReadingTime();
+                } else {
+                    startReadingTime();
+                }
+            });
+
+            // Warn and save doc page URL before window is closed
+            window.addEventListener('beforeunload', (event) => {
+                localStorage.setItem(LAST_SAVED_URL_KEY, contentFrame.src);
+                event.preventDefault();
+                event.returnValue = 'Are you sure you want to leave this page?';
+            });
+
+            // Ask user whether to jump to the last saved doc page
+            const lastSavedUrl = localStorage.getItem(LAST_SAVED_URL_KEY);
+            if (lastSavedUrl && confirm('Do you want to jump to the last saved document page?')) {
+                contentFrame.src = lastSavedUrl;
+                addressSelect.value = lastSavedUrl;
+            }
+
+            // Function to apply theme
+            const applyTheme = (theme) => {
+                document.body.className = theme; // Set body class
+                const iframeDoc = contentFrame.contentDocument || contentFrame.contentWindow.document;
+                if (iframeDoc) {
+                    iframeDoc.body.className = theme; // Set iframe body class
+                }
+            };
+
+            // Listen for theme changes
+            themeSelect.addEventListener('change', () => {
+                const selectedTheme = themeSelect.value;
+                applyTheme(selectedTheme);
+                localStorage.setItem('theme', selectedTheme); // Save theme preference
+            });
+
+            // Load saved theme or default to dark
+            const savedTheme = localStorage.getItem('theme') || 'dark';
+            themeSelect.value = savedTheme;
+            applyTheme(savedTheme);
+
+            // Initialize reading time
+            resetReadingTime();
+            startReadingTime();
+        });
+    </script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const backButton = document.querySelector('.back');
+            const contentFrame = document.querySelector('.content');
+            const addressSelect = document.querySelector('.address');
+
+            let backHistory = [];
+
+            // Update back history on page change
+            contentFrame.addEventListener('load', () => {
+                const currentUrl = contentFrame.src;
+                if (backHistory[backHistory.length - 1] !== currentUrl) {
+                    backHistory.push(currentUrl);
+                }
+            });
+
+            // Create and show the back menu
+            const createBackMenu = () => {
+                const existingMenu = document.querySelector('.back-menu');
+                if (existingMenu) {
+                    existingMenu.remove();
+                }
+
+                const menu = document.createElement('div');
+                menu.className = 'menu back-menu';
+
+                backHistory.forEach((url, index) => {
+                    const menuItem = document.createElement('div');
+                    menuItem.className = 'menu-item';
+                    menuItem.textContent = url;
+                    menuItem.addEventListener('click', () => {
+                        contentFrame.src = url;
+                        addressSelect.value = url;
+                    });
+                    menu.appendChild(menuItem);
+                });
+
+                document.body.appendChild(menu);
+                return menu;
+            };
+
+            // Show the back menu on right-click
+            backButton.addEventListener('contextmenu', (event) => {
+                event.preventDefault();
+                const menu = createBackMenu();
+                menu.style.position = 'absolute';
+                menu.style.top = `${event.clientY}px`;
+                menu.style.left = `${event.clientX}px`;
+            });
+
+            // Hide the menu when clicking elsewhere
+            document.addEventListener('click', () => {
+                const existingMenu = document.querySelector('.back-menu');
+                if (existingMenu) {
+                    existingMenu.remove();
+                }
+            });
+        });
+    </script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const forwardButton = document.querySelector('.forward');
+            const contentFrame = document.querySelector('.content');
+            const addressSelect = document.querySelector('.address');
+
+            let forwardHistory = [];
+
+            // Update forward history on page change
+            contentFrame.addEventListener('load', () => {
+                const currentUrl = contentFrame.src;
+                if (forwardHistory[forwardHistory.length - 1] !== currentUrl) {
+                    forwardHistory.push(currentUrl);
+                }
+            });
+
+            // Create and show the forward menu
+            const createForwardMenu = () => {
+                const existingMenu = document.querySelector('.forward-menu');
+                if (existingMenu) {
+                    existingMenu.remove();
+                }
+
+                const menu = document.createElement('div');
+                menu.className = 'menu forward-menu';
+
+                forwardHistory.slice().reverse().forEach((url) => {
+                    const menuItem = document.createElement('div');
+                    menuItem.className = 'menu-item';
+                    menuItem.textContent = url;
+                    menuItem.addEventListener('click', () => {
+                        contentFrame.src = url;
+                        addressSelect.value = url;
+                    });
+                    menu.appendChild(menuItem);
+                });
+
+                document.body.appendChild(menu);
+                return menu;
+            };
+
+            // Show the forward menu on right-click
+            forwardButton.addEventListener('contextmenu', (event) => {
+                event.preventDefault();
+                const menu = createForwardMenu();
+                menu.style.position = 'absolute';
+                menu.style.top = `${event.clientY}px`;
+                menu.style.left = `${event.clientX}px`;
+            });
+
+            // Hide the menu when clicking elsewhere
+            document.addEventListener('click', () => {
+                const existingMenu = document.querySelector('.forward-menu');
+                if (existingMenu) {
+                    existingMenu.remove();
+                }
+            });
+        });
+    </script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const themeSelect = document.querySelector('.theme');
+            const contentFrame = document.querySelector('.content');
+            const openWindows = [];
+
+            // Function to apply theme
+            const applyTheme = (theme) => {
+                document.body.className = theme; // Set body class
+                const iframeDoc = contentFrame.contentDocument || contentFrame.contentWindow.document;
+                if (iframeDoc) {
+                    iframeDoc.body.className = theme; // Set iframe body class
+                }
+
+                // Notify all open windows about the theme change
+                openWindows.forEach(win => {
+                    if (!win.closed) {
+                        win.postMessage({ theme }, '*');
+                    }
+                });
+            };
+
+            // Listen for theme changes
+            themeSelect.addEventListener('change', () => {
+                const selectedTheme = themeSelect.value;
+                applyTheme(selectedTheme);
+                localStorage.setItem('theme', selectedTheme); // Save theme preference
+            });
+
+            // Load saved theme or default to dark
+            const savedTheme = localStorage.getItem('theme') || 'dark';
+            themeSelect.value = savedTheme;
+            applyTheme(savedTheme);
+
+            // Track opened windows
+            window.addEventListener('message', (event) => {
+                if (event.data === 'register') {
+                    openWindows.push(event.source);
+                }
+            });
+        });
+    </script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const networkIndicator = document.querySelector('.network');
+
+            // Function to update network status
+            const updateNetworkStatus = () => {
+                if (navigator.onLine) {
+                    networkIndicator.classList.add('online');
+                    networkIndicator.classList.remove('offline');
+                } else {
+                    networkIndicator.classList.add('offline');
+                    networkIndicator.classList.remove('online');
+                }
+            };
+
+            // Monitor network state
+            window.addEventListener('online', updateNetworkStatus);
+            window.addEventListener('offline', updateNetworkStatus);
+
+            // Set initial network state
+            updateNetworkStatus();
+        });
+    </script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const geolocationIndicator = document.querySelector('.geolocation');
+            const targetLocation = { latitude: 30, longitude: 120 };
+            let watchId;
+
+            // Function to check if the user has reached the target location
+            const checkGeolocation = (position) => {
+                const { latitude, longitude } = position.coords;
+                if (
+                    Math.abs(latitude - targetLocation.latitude) < 0.01 &&
+                    Math.abs(longitude - targetLocation.longitude) < 0.01
+                ) {
+                    geolocationIndicator.classList.add('reached');
+                    navigator.geolocation.clearWatch(watchId); // Stop monitoring
+                }
+            };
+
+            // Start monitoring geolocation changes
+            if ('geolocation' in navigator) {
+                watchId = navigator.geolocation.watchPosition(checkGeolocation);
+            }
+        });
+    </script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const fullscreenButton = document.querySelector('.fullscreen');
+            const contentFrame = document.querySelector('.content');
+
+            // Function to set fullscreen for the content frame
+            fullscreenButton.addEventListener('click', () => {
+                if (contentFrame.requestFullscreen) {
+                    contentFrame.requestFullscreen();
+                } else if (contentFrame.webkitRequestFullscreen) { // Safari
+                    contentFrame.webkitRequestFullscreen();
+                } else if (contentFrame.msRequestFullscreen) { // IE11
+                    contentFrame.msRequestFullscreen();
+                }
+
+                // Send the current theme to the content frame
+                const theme = document.body.className || 'dark';
+                contentFrame.contentWindow.postMessage({ theme }, '*');
+            });
+
+            // Listen for theme updates from the parent
+            window.addEventListener('message', (event) => {
+                if (event.data.theme) {
+                    document.body.className = event.data.theme;
+                }
+            });
+        });
+    </script>
+    <script src="docs/doc.js"></script>
+    <!-- Updated to use localStorage for persisting the last saved document page URL -->
+    <!-- Added functionality to show a menu layer with backward history URLs on right-clicking the back button -->
+    <!-- Added functionality to show a menu layer with forward history URLs on right-clicking the forward button -->
+    <!-- Updated to use postMessage API to synchronize theme changes with doc pages opened in new windows -->
+    <!-- Added a network indicator circle in the setting panel and implemented functionality to monitor network state -->
+    <!-- Added a geolocation indicator circle in the setting panel to monitor location and change color when reaching the target -->
+    <!-- Added a fullscreen button in the setting panel to enable fullscreen mode for the content frame -->
+</body>
+</html>

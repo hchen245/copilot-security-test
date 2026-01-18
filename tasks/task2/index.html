@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Task 2</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            margin-top: 50px;
+            background-color: #ffffff;
+            color: #000000;
+        }
+        .calculator {
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+        }
+        .display {
+            width: calc(100% - 10px);
+            height: 40px;
+            margin-bottom: 10px;
+            text-align: right;
+            padding: 5px;
+            font-size: 18px;
+        }
+        .buttons {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+        }
+        button {
+            padding: 10px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+        .buttons button:nth-child(1) {
+            grid-column: span 3;
+        }
+        /* Dark mode styles */
+        body.dark-mode {
+            background-color: #121212;
+            color: #ffffff;
+        }
+        .dark-mode .calculator {
+            border-color: #444;
+            box-shadow: 0 0 15px rgba(255, 255, 255, 0.1);
+        }
+        #toggle {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+        .buttons.basic-mode > *:nth-child(n+6) {
+            display: none;
+        }
+        .buttons > *:nth-child(5n) {
+            background-color: #f0f0f0;
+        }
+
+        body.dark-mode .buttons > *:nth-child(5n) {
+            background-color: #444;
+        }
+        .memory-panel {
+            margin-left: 20px;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 10px;
+            width: 100px;
+            height: auto;
+            background-color: #f9f9f9;
+            overflow-y: auto;
+        }
+
+        body.dark-mode .memory-panel {
+            background-color: #333;
+            color: #fff;
+        }
+        .history-panel {
+            margin-left: 20px;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 10px;
+            width: 100px;
+            height: auto;
+            background-color: #f9f9f9;
+            overflow-y: auto;
+        }
+
+        body.dark-mode .history-panel {
+            background-color: #333;
+            color: #fff;
+        }
+    </style>
+</head>
+<body class="dark-mode">
+    <div class="calculator">
+        <input type="text" class="display" id="display">
+        <div class="buttons">
+            <button onclick="clearDisplay()">C</button>
+            <button onclick="calculateSqrt()">√</button>
+            <button onclick="calculateSquare()">^2</button>
+            <button onclick="calculateReciprocal()">1/x</button>
+            <button onclick="insertPi()">π</button>
+            <button onclick="calculateSin()">sin</button>
+            <button id="toggle" onclick="toggleTheme()">light</button>
+            <button id="mode" onclick="toggleMode()">basic</button>
+            <button onclick="calculateCos()">cos</button>
+            <button onclick="calculateTan()">tan</button>
+            <button onclick="calculateSinh()">sinh</button>
+            <button onclick="calculateCosh()">cosh</button>
+            <button onclick="memoryRecall()">MR</button>
+            <button onclick="memoryPlus()">M+</button>
+            <button onclick="memoryMinus()">M-</button>
+            <button onclick="memoryClear()">MC</button>
+            <button onclick="calculateResult()">=</button>
+            <!-- Add other buttons as needed -->
+        </div>
+        <div id="memory" class="memory-panel"></div>
+        <div id="clicks" class="history-panel"></div>
+    </div>
+
+    <script>
+        let memory = 0;
+        let history = [];
+
+        function clearDisplay() {
+            document.getElementById('display').value = '';
+        }
+
+        function calculateSqrt() {
+            const display = document.getElementById('display');
+            const value = parseFloat(display.value);
+            if (!isNaN(value)) {
+                display.value = Math.sqrt(value);
+                updateHistory('√' + value);
+            } else {
+                alert('Please enter a valid number');
+            }
+        }
+
+        function calculateSquare() {
+            const display = document.getElementById('display');
+            const value = parseFloat(display.value);
+            if (!isNaN(value)) {
+                display.value = value * value;
+                updateHistory(value + '^2');
+            } else {
+                alert('Please enter a valid number');
+            }
+        }
+
+        function calculateReciprocal() {
+            const display = document.getElementById('display');
+            const value = parseFloat(display.value);
+            if (!isNaN(value) && value !== 0) {
+                display.value = 1 / value;
+                updateHistory('1/' + value);
+            } else {
+                alert('Please enter a valid non-zero number');
+            }
+        }
+
+        function calculateSin() {
+            const display = document.getElementById('display');
+            const value = parseFloat(display.value);
+            if (!isNaN(value)) {
+                display.value = Math.sin(value);
+                updateHistory('sin(' + value + ')');
+            } else {
+                alert('Please enter a valid number');
+            }
+        }
+
+        function calculateCos() {
+            const display = document.getElementById('display');
+            const value = parseFloat(display.value);
+            if (!isNaN(value)) {
+                display.value = Math.cos(value);
+                updateHistory('cos(' + value + ')');
+            } else {
+                alert('Please enter a valid number');
+            }
+        }
+
+        function calculateTan() {
+            const display = document.getElementById('display');
+            const value = parseFloat(display.value);
+            if (!isNaN(value)) {
+                display.value = Math.tan(value);
+                updateHistory('tan(' + value + ')');
+            } else {
+                alert('Please enter a valid number');
+            }
+        }
+
+        function calculateSinh() {
+            const display = document.getElementById('display');
+            const value = parseFloat(display.value);
+            if (!isNaN(value)) {
+                display.value = Math.sinh(value);
+                updateHistory('sinh(' + value + ')');
+            } else {
+                alert('Please enter a valid number');
+            }
+        }
+
+        function calculateCosh() {
+            const display = document.getElementById('display');
+            const value = parseFloat(display.value);
+            if (!isNaN(value)) {
+                display.value = Math.cosh(value);
+                updateHistory('cosh(' + value + ')');
+            } else {
+                alert('Please enter a valid number');
+            }
+        }
+
+        function insertPi() {
+            const display = document.getElementById('display');
+            display.value = Math.PI;
+            updateHistory('π');
+        }
+
+        function toggleTheme() {
+            const body = document.body;
+            const toggleButton = document.getElementById('toggle');
+
+            if (body.classList.contains('dark-mode')) {
+                body.classList.remove('dark-mode');
+                toggleButton.textContent = 'dark';
+            } else {
+                body.classList.add('dark-mode');
+                toggleButton.textContent = 'light';
+            }
+        }
+
+        function toggleMode() {
+            const buttonsPanel = document.querySelector('.buttons');
+            const modeButton = document.getElementById('mode');
+
+            if (buttonsPanel.classList.contains('basic-mode')) {
+                buttonsPanel.classList.remove('basic-mode');
+                modeButton.textContent = 'basic';
+            } else {
+                buttonsPanel.classList.add('basic-mode');
+                modeButton.textContent = 'scientific';
+            }
+        }
+
+        function memoryRecall() {
+            const display = document.getElementById('display');
+            display.value += memory;
+            updateHistory('MR');
+        }
+
+        function updateMemoryPanel() {
+            const memoryPanel = document.getElementById('memory');
+            memoryPanel.textContent = memory;
+        }
+
+        function memoryPlus() {
+            const display = document.getElementById('display');
+            const value = parseFloat(display.value);
+            if (!isNaN(value)) {
+                memory += value;
+                updateMemoryPanel();
+                updateHistory('M+ ' + value);
+            } else {
+                alert('Please enter a valid number');
+            }
+        }
+
+        function memoryMinus() {
+            const display = document.getElementById('display');
+            const value = parseFloat(display.value);
+            if (!isNaN(value)) {
+                memory -= value;
+                updateMemoryPanel();
+            } else {
+                alert('Please enter a valid number');
+            }
+        }
+
+        function memoryClear() {
+            memory = 0;
+            updateMemoryPanel();
+        }
+
+        function updateHistory(entry) {
+            history.push(entry);
+            if (history.length > 5) {
+                history.shift();
+            }
+            const historyPanel = document.getElementById('clicks');
+            historyPanel.innerHTML = history.join('<br>');
+        }
+
+        const clickHistory = [];
+
+        function updateClickHistory(buttonText) {
+            const historyPanel = document.getElementById('clicks');
+            clickHistory.unshift(buttonText);
+            if (clickHistory.length > 5) {
+                clickHistory.pop();
+            }
+            historyPanel.innerHTML = clickHistory.map(text => `<div class='history-item'>${text}</div>`).join('');
+
+            document.querySelectorAll('.history-item').forEach(item => {
+                item.addEventListener('click', () => {
+                    const button = Array.from(document.querySelectorAll('.buttons button')).find(btn => btn.textContent === item.textContent);
+                    if (button) {
+                        button.click();
+                    }
+                });
+            });
+        }
+
+        document.querySelectorAll('.buttons button').forEach(button => {
+            button.addEventListener('click', () => {
+                updateClickHistory(button.textContent);
+            });
+        });
+
+        document.body.classList.add('dark-mode');
+        document.getElementById('toggle').textContent = 'light';
+
+        function calculateResult() {
+            const display = document.getElementById('display');
+            try {
+                display.value = eval(display.value);
+            } catch (error) {
+                alert('Invalid expression');
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const buttonsPanel = document.querySelector('.buttons');
+            const modeButton = document.getElementById('mode');
+
+            if (!buttonsPanel || !modeButton) {
+                console.error('Buttons panel or mode button not found.');
+            }
+        });
+    </script>
+</body>
+</html>

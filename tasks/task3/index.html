@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Responsive Canvas with Animation</title>
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f0f0f0;
+        }
+
+        canvas {
+            background: url('assets/bg.png') no-repeat center center;
+            background-size: cover;
+        }
+    </style>
+</head>
+<body>
+    <canvas></canvas>
+    <script>
+        const canvas = document.querySelector('canvas');
+        const ctx = canvas.getContext('2d');
+        const birdImg = new Image();
+        const floorImg = new Image();
+        birdImg.src = 'assets/bird.png';
+        floorImg.src = 'assets/fg.png';
+
+        window.store = {
+            score: 0,
+            floorX: 0,
+            frameAdjustedRate: 1,
+            isAnimating: false,
+            pipes: [],
+            bird: { x: 30, y: canvas.height / 2 },
+            floorHeight: 80
+        };
+
+        function resizeCanvas() {
+            const dpr = window.devicePixelRatio || 1;
+            const width = window.innerWidth;
+            const height = window.innerHeight;
+
+            canvas.width = width * dpr;
+            canvas.height = height * dpr;
+            canvas.style.width = `${width}px`;
+            canvas.style.height = `${height}px`;
+
+            ctx.scale(dpr, dpr);
+            draw();
+        }
+
+        function generatePipe() {
+            const gapHeight = Math.random() * (240 - 120) + 120;
+            const topHeight = Math.random() * ((canvas.height / 2 - 80) - 80) + 80;
+            const bottomY = topHeight + gapHeight;
+            window.store.pipes.push({
+                x: canvas.width,
+                topHeight,
+                bottomY,
+                width: 50,
+                passed: false
+            });
+        }
+
+        function updatePipes() {
+            window.store.pipes.forEach(pipe => {
+                pipe.x -= 4 * window.store.frameAdjustedRate;
+            });
+            window.store.pipes = window.store.pipes.filter(pipe => pipe.x + pipe.width > 0);
+
+            if (window.store.pipes.length === 0 ||
+                window.store.pipes[window.store.pipes.length - 1].x < canvas.width - 200) {
+                generatePipe();
+            }
+        }
+
+        function drawPipes() {
+            window.store.pipes.forEach(pipe => {
+                ctx.drawImage(pipeUpImg, pipe.x, 0, pipe.width, pipe.topHeight);
+                ctx.drawImage(pipeDownImg, pipe.x, pipe.bottomY, pipe.width, canvas.height - pipe.bottomY - window.store.floorHeight);
+            });
+        }
+
+        const pipeUpImg = new Image();
+        const pipeDownImg = new Image();
+        pipeUpImg.src = 'assets/pipeUp.png';
+        pipeDownImg.src = 'assets/pipeDown.png';
+
+        Promise.all([
+            new Promise((resolve, reject) => {
+                birdImg.onload = resolve;
+                birdImg.onerror = () => reject(new Error('Failed to load bird image'));
+            }),
+            new Promise((resolve, reject) => {
+                floorImg.onload = resolve;
+                floorImg.onerror = () => reject(new Error('Failed to load floor image'));
+            }),
+            new Promise((resolve, reject) => {
+                pipeUpImg.onload = resolve;
+                pipeUpImg.onerror = () => reject(new Error('Failed to load pipeUp image'));
+            }),
+            new Promise((resolve, reject) => {
+                pipeDownImg.onload = resolve;
+                pipeDownImg.onerror = () => reject(new Error('Failed to load pipeDown image'));
+            })
+        ]).then(() => {
+            resizeCanvas();
+        }).catch((error) => {
+            console.error('Image loading error:', error);
+        });
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            const width = canvas.width / (window.devicePixelRatio || 1);
+            const height = canvas.height / (window.devicePixelRatio || 1);
+
+            drawPipes();
+
+            // Draw floor
+            const floorY = height - window.store.floorHeight;
+            ctx.drawImage(floorImg, store.floorX, floorY, floorImg.width, window.store.floorHeight);
+            ctx.drawImage(floorImg, store.floorX + floorImg.width, floorY, floorImg.width, window.store.floorHeight);
+
+            // Draw bird
+            ctx.drawImage(birdImg, window.store.bird.x, window.store.bird.y);
+
+            // Draw score box
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+            ctx.fillRect(5, 5, 120, 30);
+
+            ctx.strokeStyle = 'white';
+            ctx.strokeRect(5, 5, 120, 30);
+
+            // Draw score text
+            ctx.fillStyle = 'white';
+            ctx.font = '14px Arial';
+            ctx.textAlign = 'left';
+            ctx.fillText(`Score: ${window.store.score}`, 10, 25);
+
+            // Draw "Click to Start" text if not animating
+            if (!store.isAnimating) {
+                ctx.fillStyle = 'white';
+                ctx.font = '20px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText('Click to Start', width / 2, height / 2);
+            }
+        }
+
+        function update() {
+            if (store.isAnimating) {
+                store.floorX -= 4 * store.frameAdjustedRate;
+                if (store.floorX <= -floorImg.width) {
+                    store.floorX = 0;
+                }
+                updatePipes();
+            }
+        }
+
+        function animate() {
+            update();
+            draw();
+            requestAnimationFrame(animate);
+        }
+
+        function startAnimation() {
+            if (!store.isAnimating) {
+                store.isAnimating = true;
+                animate();
+            }
+        }
+
+        window.addEventListener('resize', resizeCanvas);
+        window.addEventListener('click', startAnimation);
+        window.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                startAnimation();
+            }
+        });
+    </script>
+</body>
+</html>
